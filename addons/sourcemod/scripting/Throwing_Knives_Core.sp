@@ -10,7 +10,7 @@ public Plugin:myinfo =
 {
 	name = "[CS:S / CS:GO] Throwing Knives Core",
 	author = "R1KO", /* Сделано на основе плагинов от  meng и Bacardi */
-	version = "1.3"
+	version = "1.4"
 };
 
 #define DMG_HEADSHOT		(1 << 30)
@@ -42,12 +42,14 @@ new bool:	g_Cvar_bTrails;
 
 new bool:	g_Cvar_bFF;
 
+new Handle:	g_hForward_OnKnifeDamage;
 new Handle:	g_hForward_OnKnifeThrow;
 new Handle:	g_hForward_OnKnifesGiven;
 new Handle:	g_hForward_OnKnifesTaken;
 
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:sError[], err_max)
 {
+	g_hForward_OnKnifeDamage = CreateGlobalForward("TKC_OnKnifeDamage", ET_Hook, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef);
 	g_hForward_OnKnifeThrow = CreateGlobalForward("TKC_OnKnifeThrow", ET_Hook, Param_Cell);
 	g_hForward_OnKnifesGiven = CreateGlobalForward("TKC_OnKnifesGiven", ET_Hook, Param_Cell, Param_CellByRef, Param_Cell);
 	g_hForward_OnKnifesTaken = CreateGlobalForward("TKC_OnKnifesTaken", ET_Hook, Param_Cell, Param_CellByRef, Param_Cell);
@@ -214,6 +216,7 @@ public Event_RoundEnd(Handle:hEvent, const String:sEvName[], bool:bDontBroadcast
 public Event_PlayerSpawn(Handle:hEvent, const String:sEvName[], bool:bDontBroadcast)
 {
 	new iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+//	PrintToChat(iClient, "%s: %d", sEvName, g_iPlayerKniveCount[iClient]);
 
 	if(g_iPlayerKniveCount[iClient] != 0)
 	{
@@ -244,7 +247,7 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:sEvName[], bool:bDon
 		decl String:sWeapon[32];
 		GetEventString(hEvent, "weapon", sWeapon, sizeof(sWeapon));
 
-		if(!strncmp(sWeapon, "knife", 5, false) || !strcmp(sWeapon, "bayonet"))
+		if(StrContains(sWeapon, "knife", true) != -1 || StrContains(sWeapon, "bayonet", true) != -1)
 		{
 			SetEventBool(hEvent, "headshot", g_bHeadshot[iClient]);
 			g_bHeadshot[iClient] = false;
@@ -254,16 +257,16 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:sEvName[], bool:bDon
 				new iVictim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 				if(g_iPlayerKnives[iVictim] > 0)
 				{
-					decl iDummy, iCount, Action:aResult;
+					decl iDummy, iCount, Action:eResult;
 					iCount = iDummy = g_iPlayerKnives[iVictim];
 					if(g_iPlayerKnives[iClient] + iCount > g_iPlayerKniveCountLimit[iClient])
 					{
 						iCount = g_iPlayerKniveCountLimit[iClient] - g_iPlayerKnives[iClient];
 					}
-					aResult = Forward_OnKnifesGiven(iClient, iCount, KNIFES_BY_STEAL);
-					if(aResult > Plugin_Changed)
+					eResult = Forward_OnKnifesGiven(iClient, iCount, KNIFES_BY_STEAL);
+					if(eResult > Plugin_Changed)
 					{
-						if(aResult == Plugin_Continue)
+						if(eResult == Plugin_Continue)
 						{
 							iCount = iDummy;
 						}
@@ -284,16 +287,20 @@ public Event_WeaponFire(Handle:hEvent, const String:sEvName[], bool:bDontBroadca
 {
 	new iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 //	PrintToChat(iClient, "%s: '%s', %b && %b", sEvName, sWeapon, g_bHasAccess[iClient], HasClientKnives(iClient));
+//	PrintToChat(iClient, "%s: %d", sEvName, g_iPlayerKnives[iClient]);
 	if(g_iPlayerKnives[iClient] > 0 || g_iPlayerKnives[iClient] == -1)
 	{
 		decl String:sWeapon[32];
 		GetEventString(hEvent, "weapon", sWeapon, sizeof(sWeapon));
+	//	PrintToChat(iClient, "weapon = '%s'", sWeapon);
 
 		//PrintToChat(iClient, "%s: '%s'", sEvName, sWeapon);
-		if(!strncmp(sWeapon, "knife", 5, true) || !strcmp(sWeapon, "bayonet", true))
+		if(StrContains(sWeapon, "knife", true) != -1 || StrContains(sWeapon, "bayonet", true) != -1)
 		{
+		//	PrintToChat(iClient, "StrContains");
 			if(Forward_OnKnifeThrow(iClient))
 			{
+			//	PrintToChat(iClient, "Forward_OnKnifeThrow");
 				RequestFrame(CreateKnife, iClient);
 			}
 		}
@@ -304,6 +311,7 @@ public CreateKnife(any:iClient)
 {
 	if(IsClientInGame(iClient))
 	{
+	//	PrintToChat(iClient, "CreateKnife");
 		new iKnife = CreateEntityByName("smokegrenade_projectile");
 		DispatchKeyValue(iKnife, "classname", "throwing_knife");
 
@@ -416,10 +424,6 @@ public Action:KnifeHit(iKnife, iVictim)
 		m_iClassname: 'throwing_knife'
 		*/
 
-		SetVariantString("csblood");
-		AcceptEntityInput(iKnife, "DispatchEffect");
-		AcceptEntityInput(iKnife, "Kill");
-
 		if(!g_Cvar_bFF && GetClientTeam(iAttacker) == GetClientTeam(iVictim))
 		{
 			return Plugin_Continue;
@@ -448,6 +452,23 @@ public Action:KnifeHit(iKnife, iVictim)
 			{
 				fDamage = g_Cvar_fDamage;
 			}
+			
+			PrintToChat(iAttacker, "fDamage = %.2f", fDamage);
+
+			new Float:fDummy = fDamage;
+
+			switch(Forward_OnKnifeDamage(iAttacker, iVictim, iKnife, fDamage))
+			{
+				case Plugin_Continue:
+				{
+					fDamage = fDummy;
+				}
+				case Plugin_Handled, Plugin_Stop:
+				{
+					AcceptEntityInput(iKnife, "Kill");
+					return Plugin_Handled;
+				}
+			}
 
 			if(Engine_Version == Engine_SourceSDK2006)
 			{
@@ -467,6 +488,10 @@ public Action:KnifeHit(iKnife, iVictim)
 
 			TE_SetupBloodSprite(fDamagePosition, Float:{0.0, 0.0, 0.0}, {255, 0, 0, 255}, 1, g_iBloodDecal, g_iBloodDecal);
 			TE_SendToAll(0.0);
+
+			SetVariantString("csblood");
+			AcceptEntityInput(iKnife, "DispatchEffect");
+			AcceptEntityInput(iKnife, "Kill");
 
 			new ragdoll = GetEntPropEnt(iVictim, Prop_Send, "m_hRagdoll");
 			if(ragdoll != -1)
@@ -603,17 +628,21 @@ public Native_SetClientKnives(Handle:hPlugin, iNumParams)
 	{
 		ThrowNativeError(SP_ERROR_NATIVE, "Invalid amount (%i)", iCount);
 	}
+	
+//	LogMessage("Native_SetClientKnives: %N = %d (%b)", iClient, iCount, GetNativeCell(2));
 
 	if(GetNativeCell(2))
 	{
 		if(IsPlayerAlive(iClient))
 		{
+		//	LogMessage("g_iPlayerKnives = %d", g_iPlayerKnives[iClient]);
 			g_iPlayerKnives[iClient] = iCount;
 			return g_iPlayerKnives[iClient];
 		}
 	}
 	else
 	{
+	//	LogMessage("g_iPlayerKniveCount = %d", g_iPlayerKniveCount[iClient]);
 		g_iPlayerKniveCount[iClient] = iCount;
 		return g_iPlayerKniveCount[iClient];
 	}
@@ -664,8 +693,12 @@ public Native_SetClientKnivesLimit(Handle:hPlugin, iNumParams)
 	{
 		ThrowNativeError(SP_ERROR_NATIVE, "Invalid amount (%i)", iLimit);
 	}
+	
+//	LogMessage("Native_SetClientKnivesLimit: %N = %d (%b)", iClient, iLimit, GetNativeCell(2));
+//	LogMessage("g_iPlayerKniveCountLimit = %d", g_iPlayerKniveCountLimit[iClient]);
 
 	g_iPlayerKniveCountLimit[iClient] = iLimit;
+//	LogMessage("g_iPlayerKniveCountLimit = %d", g_iPlayerKniveCountLimit[iClient]);
 
 	return g_iPlayerKniveCountLimit[iClient];
 }
@@ -700,6 +733,8 @@ public Native_GiveClientKnives(Handle:hPlugin, iNumParams)
 	{
 		ThrowNativeError(SP_ERROR_NATIVE, "Invalid amount (%i)", iCount);
 	}
+	
+//	LogMessage("Native_GiveClientKnives: %N = %d (%b)", iClient, iCount, GetNativeCell(3));
 
 	new iDummy = iCount;
 
@@ -719,13 +754,17 @@ public Native_GiveClientKnives(Handle:hPlugin, iNumParams)
 	{
 		if(IsPlayerAlive(iClient) && g_iPlayerKnives[iClient] != -1)
 		{
+		//	LogMessage("g_iPlayerKnives = %d", g_iPlayerKnives[iClient]);
 			g_iPlayerKnives[iClient] += iCount;
+		//	LogMessage("g_iPlayerKnives = %d", g_iPlayerKnives[iClient]);
 			return g_iPlayerKnives[iClient];
 		}
 	}
 	else if(g_iPlayerKniveCount[iClient] != -1)
 	{
+	//	LogMessage("g_iPlayerKniveCount = %d", g_iPlayerKniveCount[iClient]);
 		g_iPlayerKniveCount[iClient] += iCount;
+	//	LogMessage("g_iPlayerKniveCount = %d", g_iPlayerKniveCount[iClient]);
 		return g_iPlayerKniveCount[iClient];
 	}
 
@@ -800,6 +839,20 @@ public Native_IsEntityThrowingKnife(Handle:hPlugin, iNumParams)
 	return FindValueInArray(g_hThrownKnives, EntIndexToEntRef(iEntity)) != -1;
 }
 
+Action:Forward_OnKnifeDamage(iAttacker, iClient, iKnife, &Float:fDamage)
+{
+	new Action:eResult = Plugin_Continue;
+	
+	Call_StartForward(g_hForward_OnKnifeDamage);
+	Call_PushCell(iAttacker);
+	Call_PushCell(iClient);
+	Call_PushCell(iKnife);
+	Call_PushCellRef(fDamage);
+	Call_Finish(eResult);
+	
+	return eResult;
+}
+
 bool:Forward_OnKnifeThrow(iClient)
 {
 	new bool:bResult = true;
@@ -813,26 +866,26 @@ bool:Forward_OnKnifeThrow(iClient)
 
 Action:Forward_OnKnifesGiven(iClient, &iCount, by_who)
 {
-	new Action:aResult = Plugin_Continue;
+	new Action:eResult = Plugin_Continue;
 	
 	Call_StartForward(g_hForward_OnKnifesGiven);
 	Call_PushCell(iClient);
 	Call_PushCellRef(iCount);
 	Call_PushCell(by_who);
-	Call_Finish(aResult);
+	Call_Finish(eResult);
 	
-	return aResult;
+	return eResult;
 }
 
 Action:Forward_OnKnifesTaken(iClient, &iCount, by_who)
 {
-	new Action:aResult = Plugin_Continue;
+	new Action:eResult = Plugin_Continue;
 	
 	Call_StartForward(g_hForward_OnKnifesTaken);
 	Call_PushCell(iClient);
 	Call_PushCellRef(iCount);
 	Call_PushCell(by_who);
-	Call_Finish(aResult);
+	Call_Finish(eResult);
 	
-	return aResult;
+	return eResult;
 }
