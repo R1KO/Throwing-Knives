@@ -13,13 +13,14 @@
  * @param iAttacker			Индекс атакующего игрока.
  * @param iClient			Индекс жертвы.
  * @param iKnife			Индекс ножа.
- * @param fDamage			Урон.
+ * @param fDamage			Значение урона.
+ * @param bHeadShot			true - в голову, false - в тело/конечности.
  *	-
  * @return	Вернуть Plugin_Stop или Plugin_Handled чтобы заблокировать.
  * 			Вернуть Plugin_Changed чтобы разрешить с изменением.
  * 			Вернуть Plugin_Continue чтобы разрешить без изменений.
 */
-forward Action:TKC_OnKnifeDamage(iAttacker, iClient, iKnife, &Float:fDamage);
+forward Action:TKC_OnKnifeDamage(iAttacker, iClient, iKnife, &Float:fDamage, &bool:bHeadShot);
 
 /**
  *	Вызывается когда игрок метает нож.
