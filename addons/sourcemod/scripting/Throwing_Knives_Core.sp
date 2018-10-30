@@ -355,7 +355,6 @@ public CreateKnife(any:iClient)
 				}
 			}
 
-			SetEntProp(iKnife, Prop_Send, "m_nModelIndex", PrecacheModel(sBuffer));
 			if(Engine_Version != Engine_SourceSDK2006)
 			{
 				SetEntPropFloat(iKnife, Prop_Send, "m_flModelScale", g_Cvar_fModelScale);
