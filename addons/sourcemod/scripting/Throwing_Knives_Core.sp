@@ -81,8 +81,11 @@ public OnPluginStart()
 	}
 
 	decl Handle:hCvar;
-
-	hCvar = FindConVar("mp_friendlyfire");
+	hCvar = FindConVar("cssdm_ffa_enabled");
+	if(hCvar == INVALID_HANDLE)
+	{
+		hCvar = FindConVar("mp_friendlyfire");
+	}
 	HookConVarChange(hCvar, OnFFChange);
 	g_Cvar_bFF = GetConVarBool(hCvar);
 
