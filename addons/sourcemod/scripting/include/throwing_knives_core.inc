@@ -32,6 +32,15 @@ forward Action:TKC_OnKnifeDamage(iAttacker, iClient, iKnife, &Float:fDamage, &bo
 forward bool:TKC_OnKnifeThrow(iClient);
 
 /**
+ *	Вызывается когда игрок метнул нож.
+ *	-
+ * @param iClient			Индекс игрока.
+ *	-
+ * @noreturn
+*/
+forward TKC_OnKnifeThrowPost(iClient, iEntity);
+
+/**
  *	Вызывается когда игрок получает ножи.
  *	-
  * @param iClient			Индекс игрока.

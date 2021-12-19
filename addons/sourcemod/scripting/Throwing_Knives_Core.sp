@@ -10,7 +10,7 @@ public Plugin:myinfo =
 {
 	name = "[CS:S / CS:GO] Throwing Knives Core",
 	author = "R1KO", /* Сделано на основе плагинов от  meng и Bacardi */
-	version = "1.6"
+	version = "1.7"
 };
 
 #define DMG_HEADSHOT		(1 << 30)
@@ -44,6 +44,7 @@ new bool:	g_Cvar_bFF;
 
 new Handle:	g_hForward_OnKnifeDamage;
 new Handle:	g_hForward_OnKnifeThrow;
+new Handle:	g_hForward_OnKnifeThrowPost;
 new Handle:	g_hForward_OnKnifesGiven;
 new Handle:	g_hForward_OnKnifesTaken;
 
@@ -51,6 +52,7 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:sError[], err_max)
 {
 	g_hForward_OnKnifeDamage = CreateGlobalForward("TKC_OnKnifeDamage", ET_Hook, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef);
 	g_hForward_OnKnifeThrow = CreateGlobalForward("TKC_OnKnifeThrow", ET_Hook, Param_Cell);
+	g_hForward_OnKnifeThrowPost = CreateGlobalForward("TKC_OnKnifeThrowPost", ET_Hook, Param_Cell, Param_Cell);
 	g_hForward_OnKnifesGiven = CreateGlobalForward("TKC_OnKnifesGiven", ET_Hook, Param_Cell, Param_CellByRef, Param_Cell);
 	g_hForward_OnKnifesTaken = CreateGlobalForward("TKC_OnKnifesTaken", ET_Hook, Param_Cell, Param_CellByRef, Param_Cell);
 
@@ -307,104 +309,109 @@ public Event_WeaponFire(Handle:hEvent, const String:sEvName[], bool:bDontBroadca
 	}
 }
 
-public CreateKnife(any:iClient)
+public CreateKnife(iClient)
 {
-	if(IsClientInGame(iClient))
+	if(!IsClientInGame(iClient))
 	{
-	//	PrintToChat(iClient, "CreateKnife");
-		new iKnife = CreateEntityByName("smokegrenade_projectile");
-		DispatchKeyValue(iKnife, "classname", "throwing_knife");
+		return;
+	}
+//	PrintToChat(iClient, "CreateKnife");
+	new iKnife = CreateEntityByName("smokegrenade_projectile");
+	DispatchKeyValue(iKnife, "classname", "throwing_knife");
 
-		if(DispatchSpawn(iKnife))
+	if(!DispatchSpawn(iKnife))
+	{
+		return;
+	}
+
+	PushArrayCell(g_hThrownKnives, EntIndexToEntRef(iKnife));
+
+	new iTeam = GetClientTeam(iClient);
+	SetEntPropEnt(iKnife, Prop_Send, "m_hOwnerEntity", iClient);
+	SetEntPropEnt(iKnife, Prop_Send, "m_hThrower", iClient);
+	SetEntProp(iKnife, Prop_Send, "m_iTeamNum", iTeam);
+
+	decl String:sBuffer[PLATFORM_MAX_PATH];
+	new iWeaponKnife = GetPlayerWeaponSlot(iClient, 2);
+	if(iWeaponKnife != -1)
+	{
+		GetEntPropString(iWeaponKnife, Prop_Data, "m_ModelName", sBuffer, sizeof(sBuffer));
+		if(ReplaceString(sBuffer, sizeof(sBuffer), "v_knife_", "w_knife_", true) != 1)
 		{
-			PushArrayCell(g_hThrownKnives, EntIndexToEntRef(iKnife));
+			sBuffer[0] = '\0';
+		}
+		else if(Engine_Version == Engine_CSGO && ReplaceString(sBuffer, sizeof(sBuffer), ".mdl", "_dropped.mdl", true) != 1)
+		{
+			sBuffer[0] = '\0';
+		}
+	}
 
-			new iTeam = GetClientTeam(iClient);
-			SetEntPropEnt(iKnife, Prop_Send, "m_hOwnerEntity", iClient);
-			SetEntPropEnt(iKnife, Prop_Send, "m_hThrower", iClient);
-			SetEntProp(iKnife, Prop_Send, "m_iTeamNum", iTeam);
-
-			decl String:sBuffer[PLATFORM_MAX_PATH];
-			new iWeaponKnife = GetPlayerWeaponSlot(iClient, 2);
-			if(iWeaponKnife != -1)
+	if(FileExists(sBuffer, true) == false)
+	{
+		if(Engine_Version == Engine_CSGO)
+		{
+			switch(iTeam)
 			{
-				GetEntPropString(iWeaponKnife, Prop_Data, "m_ModelName", sBuffer, sizeof(sBuffer));
-				if(ReplaceString(sBuffer, sizeof(sBuffer), "v_knife_", "w_knife_", true) != 1)
-				{
-					sBuffer[0] = '\0';
-				}
-				else if(Engine_Version == Engine_CSGO && ReplaceString(sBuffer, sizeof(sBuffer), ".mdl", "_dropped.mdl", true) != 1)
-				{
-					sBuffer[0] = '\0';
-				}
-			}
-
-			if(FileExists(sBuffer, true) == false)
-			{
-				if(Engine_Version == Engine_CSGO)
-				{
-					switch(iTeam)
-					{
-						case 2:	strcopy(sBuffer, sizeof(sBuffer), "models/weapons/w_knife_default_t_dropped.mdl");
-						case 3:	strcopy(sBuffer, sizeof(sBuffer), "models/weapons/w_knife_default_ct_dropped.mdl");
-					}
-				}
-				else
-				{
-					strcopy(sBuffer, sizeof(sBuffer), "models/weapons/w_knife_t.mdl");
-				}
-			}
-
-			if(Engine_Version != Engine_SourceSDK2006)
-			{
-				SetEntPropFloat(iKnife, Prop_Send, "m_flModelScale", g_Cvar_fModelScale);
-			}
-			SetEntPropFloat(iKnife, Prop_Send, "m_flElasticity", g_Cvar_fElasticity);
-			SetEntPropFloat(iKnife, Prop_Data, "m_flGravity", g_Cvar_fGravity);
-
-			decl Float:fOrigin[3], Float:fAngles[3], Float:sPos[3], Float:fPlayerVelocity[3], Float:fVelocity[3];
-			GetClientEyePosition(iClient, fOrigin);
-			GetClientEyeAngles(iClient, fAngles);
-
-			GetAngleVectors(fAngles, sPos, NULL_VECTOR, NULL_VECTOR);
-			ScaleVector(sPos, 50.0);
-			AddVectors(sPos, fOrigin, sPos);
-
-			GetEntPropVector(iClient, Prop_Data, "m_vecVelocity", fPlayerVelocity);
-			GetAngleVectors(fAngles, fVelocity, NULL_VECTOR, NULL_VECTOR);
-			ScaleVector(fVelocity, g_Cvar_fVelocity);
-			AddVectors(fVelocity, fPlayerVelocity, fVelocity);
-
-			SetEntPropVector(iKnife, Prop_Data, "m_vecAngVelocity", Float:{4000.0, 0.0, 0.0});
-
-			SetEntProp(iKnife, Prop_Data, "m_nNextThinkTick", -1);
-			Format(sBuffer, sizeof(sBuffer), "!self,Kill,,%0.1f,-1", g_Cvar_fMaxLifeTime);
-			DispatchKeyValue(iKnife, "OnUser1", sBuffer);
-			AcceptEntityInput(iKnife, "FireUser1");
-
-			if(g_Cvar_bTrails)
-			{
-				if(Engine_Version == Engine_CSGO)
-				{
-					TE_SetupBeamFollow(iKnife, g_iTrailSprite, 0, 0.5, 1.0, 0.1, 0, {255, 255, 255, 255});
-				}
-				else
-				{
-					TE_SetupBeamFollow(iKnife, g_iTrailSprite, 0, 0.5, 8.0, 1.0, 0, {255, 255, 255, 255});
-				}
-
-				TE_SendToAll();
-			}
-
-			TeleportEntity(iKnife, sPos, fAngles, fVelocity);
-			SDKHook(iKnife, SDKHook_Touch, KnifeHit);
-
-			if(g_iPlayerKnives[iClient] != -1)
-			{
-				g_iPlayerKnives[iClient]--;
-				PrintHintText(iClient, "Ножей осталось: %d", g_iPlayerKnives[iClient]);
+				case 2:	strcopy(sBuffer, sizeof(sBuffer), "models/weapons/w_knife_default_t_dropped.mdl");
+				case 3:	strcopy(sBuffer, sizeof(sBuffer), "models/weapons/w_knife_default_ct_dropped.mdl");
 			}
 		}
+		else
+		{
+			strcopy(sBuffer, sizeof(sBuffer), "models/weapons/w_knife_t.mdl");
+		}
+	}
+
+	if(Engine_Version != Engine_SourceSDK2006)
+	{
+		SetEntPropFloat(iKnife, Prop_Send, "m_flModelScale", g_Cvar_fModelScale);
+	}
+	SetEntPropFloat(iKnife, Prop_Send, "m_flElasticity", g_Cvar_fElasticity);
+	SetEntPropFloat(iKnife, Prop_Data, "m_flGravity", g_Cvar_fGravity);
+
+	decl Float:fOrigin[3], Float:fAngles[3], Float:sPos[3], Float:fPlayerVelocity[3], Float:fVelocity[3];
+	GetClientEyePosition(iClient, fOrigin);
+	GetClientEyeAngles(iClient, fAngles);
+
+	GetAngleVectors(fAngles, sPos, NULL_VECTOR, NULL_VECTOR);
+	ScaleVector(sPos, 50.0);
+	AddVectors(sPos, fOrigin, sPos);
+
+	GetEntPropVector(iClient, Prop_Data, "m_vecVelocity", fPlayerVelocity);
+	GetAngleVectors(fAngles, fVelocity, NULL_VECTOR, NULL_VECTOR);
+	ScaleVector(fVelocity, g_Cvar_fVelocity);
+	AddVectors(fVelocity, fPlayerVelocity, fVelocity);
+
+	SetEntPropVector(iKnife, Prop_Data, "m_vecAngVelocity", Float:{4000.0, 0.0, 0.0});
+
+	SetEntProp(iKnife, Prop_Data, "m_nNextThinkTick", -1);
+	Format(sBuffer, sizeof(sBuffer), "!self,Kill,,%0.1f,-1", g_Cvar_fMaxLifeTime);
+	DispatchKeyValue(iKnife, "OnUser1", sBuffer);
+	AcceptEntityInput(iKnife, "FireUser1");
+
+	if(g_Cvar_bTrails)
+	{
+		if(Engine_Version == Engine_CSGO)
+		{
+			TE_SetupBeamFollow(iKnife, g_iTrailSprite, 0, 0.5, 1.0, 0.1, 0, {255, 255, 255, 255});
+		}
+		else
+		{
+			TE_SetupBeamFollow(iKnife, g_iTrailSprite, 0, 0.5, 8.0, 1.0, 0, {255, 255, 255, 255});
+		}
+
+		TE_SendToAll();
+	}
+
+	TeleportEntity(iKnife, sPos, fAngles, fVelocity);
+	SDKHook(iKnife, SDKHook_Touch, KnifeHit);
+	
+	Forward_OnKnifeThrowPost(iClient, iKnife);
+
+	if(g_iPlayerKnives[iClient] != -1)
+	{
+		g_iPlayerKnives[iClient]--;
+		PrintHintText(iClient, "Ножей осталось: %d", g_iPlayerKnives[iClient]);
 	}
 }
 
@@ -869,6 +876,14 @@ bool:Forward_OnKnifeThrow(iClient)
 	Call_Finish(bResult);
 
 	return bResult;
+}
+
+Forward_OnKnifeThrowPost(iClient, iEntity)
+{
+	Call_StartForward(g_hForward_OnKnifeThrowPost);
+	Call_PushCell(iClient);
+	Call_PushCell(iEntity);
+	Call_Finish();
 }
 
 Action:Forward_OnKnifesGiven(iClient, &iCount, by_who)
