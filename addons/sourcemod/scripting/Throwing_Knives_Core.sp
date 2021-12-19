@@ -1,54 +1,56 @@
 #pragma semicolon 1
 
+#pragma newdecls required
+
 #include <sourcemod>
 #include <sdkhooks>
 #include <sdktools>
 #include <cstrike>
 #include <throwing_knives_core>
 
-public Plugin:myinfo = 
+public Plugin myinfo = 
 {
-	name = "[CS:S / CS:GO] Throwing Knives Core",
+	name = "[CS S / CS GO] Throwing Knives Core",
 	author = "R1KO", /* Сделано на основе плагинов от  meng и Bacardi */
 	version = "1.7"
 };
 
 #define DMG_HEADSHOT		(1 << 30)
 
-new EngineVersion:Engine_Version;
+EngineVersion Engine_Version;
 
-new 		g_iPointHurt;
-new 		g_iDmgType;
-new			g_iTrailSprite;
-new			g_iBloodDecal;
-new Handle:	g_hThrownKnives;
-new bool:	g_bHeadshot[MAXPLAYERS+1];
+int g_iPointHurt;
+int g_iDmgType;
+int g_iTrailSprite;
+int g_iBloodDecal;
+ArrayList g_hThrownKnives;
+bool g_bHeadshot[MAXPLAYERS+1];
 
-new			g_iPlayerKnives[MAXPLAYERS+1];
-new			g_iPlayerKniveCount[MAXPLAYERS+1];
-new 		g_iPlayerKniveCountLimit[MAXPLAYERS+1];
+int g_iPlayerKnives[MAXPLAYERS+1];
+int g_iPlayerKniveCount[MAXPLAYERS+1];
+int g_iPlayerKniveCountLimit[MAXPLAYERS+1];
 
-new 		g_Cvar_iCount;
-new 		g_Cvar_iLimit;
-new bool:	g_Cvar_bSteal;
-new Float:	g_Cvar_fVelocity;
-new Float:	g_Cvar_fDamage;
-new Float:	g_Cvar_fHSDamage;
-new Float:	g_Cvar_fModelScale;
-new Float:	g_Cvar_fGravity;
-new Float:	g_Cvar_fElasticity;
-new Float:	g_Cvar_fMaxLifeTime;
-new bool:	g_Cvar_bTrails;
+int g_Cvar_iCount;
+int g_Cvar_iLimit;
+bool g_Cvar_bSteal;
+float g_Cvar_fVelocity;
+float g_Cvar_fDamage;
+float g_Cvar_fHSDamage;
+float g_Cvar_fModelScale;
+float g_Cvar_fGravity;
+float g_Cvar_fElasticity;
+float g_Cvar_fMaxLifeTime;
+bool g_Cvar_bTrails;
 
-new bool:	g_Cvar_bFF;
+bool g_Cvar_bFF;
 
-new Handle:	g_hForward_OnKnifeDamage;
-new Handle:	g_hForward_OnKnifeThrow;
-new Handle:	g_hForward_OnKnifeThrowPost;
-new Handle:	g_hForward_OnKnifesGiven;
-new Handle:	g_hForward_OnKnifesTaken;
+Handle g_hForward_OnKnifeDamage;
+Handle g_hForward_OnKnifeThrow;
+Handle g_hForward_OnKnifeThrowPost;
+Handle g_hForward_OnKnifesGiven;
+Handle g_hForward_OnKnifesTaken;
 
-public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:sError[], err_max)
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] szError, int err_max)
 {
 	g_hForward_OnKnifeDamage = CreateGlobalForward("TKC_OnKnifeDamage", ET_Hook, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef);
 	g_hForward_OnKnifeThrow = CreateGlobalForward("TKC_OnKnifeThrow", ET_Hook, Param_Cell);
@@ -74,7 +76,7 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:sError[], err_max)
 	return APLRes_Success;
 }
 
-public OnPluginStart() 
+public void OnPluginStart() 
 {
 	Engine_Version = GetEngineVersion();
 	if (Engine_Version == Engine_Unknown)
@@ -82,77 +84,77 @@ public OnPluginStart()
 		SetFailState("Game is not supported!");
 	}
 
-	decl Handle:hCvar;
+	Handle hCvar;
 
 	hCvar = FindConVar("mp_friendlyfire");
 	HookConVarChange(hCvar, OnFFChange);
 	g_Cvar_bFF = GetConVarBool(hCvar);
 
-	hCvar = CreateConVar("tkc_count", "0", "RU: Сколько ножей будет получать игрок при возрождении (0 - Не выдывать, -1 - Бесконечно).\n\
-												EN: Amount of knives players spawn with (0 = Disable, -1 = Infinite).", _, true, -1.0);
+	hCvar = CreateConVar("tkc_count", "0", "RU  Сколько ножей будет получать игрок при возрождении (0 - Не выдывать, -1 - Бесконечно).\n\
+												EN  Amount of knives players spawn with (0 = Disable, -1 = Infinite).", _, true, -1.0);
 	HookConVarChange(hCvar, OnCountChange);
 	g_Cvar_iCount = GetConVarInt(hCvar);
 
-	hCvar = CreateConVar("tkc_limit", "-1", "RU: Сколько ножей может иметь игрок (-1 - Не ограничено).\n\
-												EN: How many knives a player can have (-1 - No limit).", _, true, -1.0);
+	hCvar = CreateConVar("tkc_limit", "-1", "RU  Сколько ножей может иметь игрок (-1 - Не ограничено).\n\
+												EN  How many knives a player can have (-1 - No limit).", _, true, -1.0);
 	HookConVarChange(hCvar, OnLimitChange);
 	g_Cvar_iLimit = GetConVarInt(hCvar);
 
-	hCvar = CreateConVar("tkc_steal", "1", "RU: Если включено атакующий получит ножи жертвы.\n\
-												EN: If enabled, knife kills get the victims remaining knives.", _, true, 0.0, true, 1.0);
+	hCvar = CreateConVar("tkc_steal", "1", "RU  Если включено атакующий получит ножи жертвы.\n\
+												EN  If enabled, knife kills get the victims remaining knives.", _, true, 0.0, true, 1.0);
 	HookConVarChange(hCvar, OnStealChange);
 	g_Cvar_bSteal = GetConVarBool(hCvar);
 
-	hCvar = CreateConVar("tkc_velocity", "2250.0", "RU: Скорость полёта ножа.\n\
-												EN: Velocity (speed) adjustment.", _, true, 1.0);
+	hCvar = CreateConVar("tkc_velocity", "2250.0", "RU  Скорость полёта ножа.\n\
+												EN  Velocity (speed) adjustment.", _, true, 1.0);
 	HookConVarChange(hCvar, OnVelocityChange);
 	g_Cvar_fVelocity = GetConVarFloat(hCvar);
 
-	hCvar = CreateConVar("tkc_damage", "57.0", "RU: Наносимый урон.\n\
-												EN: Damage adjustment.", _, true, 1.0);
+	hCvar = CreateConVar("tkc_damage", "57.0", "RU  Наносимый урон.\n\
+												EN  Damage adjustment.", _, true, 1.0);
 	HookConVarChange(hCvar, OnDamageChange);
 	g_Cvar_fDamage = GetConVarFloat(hCvar);
 
-	hCvar = CreateConVar("tkc_hsdamage", "127.0", "RU: Наносимый урон в голову.\n\
-												EN: Headshot damage adjustment.", _, true, 0.0);
+	hCvar = CreateConVar("tkc_hsdamage", "127.0", "RU  Наносимый урон в голову.\n\
+												EN  Headshot damage adjustment.", _, true, 0.0);
 	HookConVarChange(hCvar, OnHSDamageChange);
 	g_Cvar_fHSDamage = GetConVarFloat(hCvar);
 
 	if (Engine_Version != Engine_SourceSDK2006)
 	{
-		hCvar = CreateConVar("tkc_modelscale", "1.0", "RU: Значение размера ножа (1.0 - норма).\n\
-												EN: Knife size scale (1.0 - normal).", _, true, 0.0);
+		hCvar = CreateConVar("tkc_modelscale", "1.0", "RU  Значение размера ножа (1.0 - норма).\n\
+												EN  Knife size scale (1.0 - normal).", _, true, 0.0);
 		HookConVarChange(hCvar, OnModelScaleChange);
 		g_Cvar_fModelScale = GetConVarFloat(hCvar);
 	}
 
-	hCvar = CreateConVar("tkc_gravity", "1.0", "RU: Значение силы тяжести ножа (1.0 - норма).\n\
-												EN: Knife gravity scale (1.0 - normal).", _, true, 0.0);
+	hCvar = CreateConVar("tkc_gravity", "1.0", "RU  Значение силы тяжести ножа (1.0 - норма).\n\
+												EN  Knife gravity scale (1.0 - normal).", _, true, 0.0);
 	HookConVarChange(hCvar, OnGravityChange);
 	g_Cvar_fGravity = GetConVarFloat(hCvar);
 
-	hCvar = CreateConVar("tkc_elasticity", "0.2", "RU: Значение эластичности.\n\
-												EN: Knife elasticity.", _, true, 0.0);
+	hCvar = CreateConVar("tkc_elasticity", "0.2", "RU  Значение эластичности.\n\
+												EN  Knife elasticity.", _, true, 0.0);
 	HookConVarChange(hCvar, OnElasticityChange);
 	g_Cvar_fElasticity = GetConVarFloat(hCvar);
 
-	hCvar = CreateConVar("tkc_maxlifetime", "1.5", "RU: Максимальное время жизни ножа (1 - 30 сек).\n\
-												EN: Knife max life time (1 - 30 sec).", _, true, 1.0, true, 30.0);
+	hCvar = CreateConVar("tkc_maxlifetime", "1.5", "RU  Максимальное время жизни ножа (1 - 30 сек).\n\
+												EN  Knife max life time (1 - 30 sec).", _, true, 1.0, true, 30.0);
 	HookConVarChange(hCvar, OnMaxLifeTimeChange);
 	g_Cvar_fMaxLifeTime = GetConVarFloat(hCvar);
 
-	hCvar = CreateConVar("tkc_trails", "1", "RU: Эффект траектории ножа.\n\
-												EN: Knive leave trail effect", _, true, 0.0, true, 1.0);
+	hCvar = CreateConVar("tkc_trails", "1", "RU  Эффект траектории ножа.\n\
+												EN  Knive leave trail effect", _, true, 0.0, true, 1.0);
 	HookConVarChange(hCvar, OnTrailsChange);
 	g_Cvar_bTrails = GetConVarBool(hCvar);
 
 	AutoExecConfig(true, "ThrowingKnives_Core");
 
-	g_hThrownKnives = CreateArray();
+	g_hThrownKnives = new ArrayList();
 
-	HookEvent("player_spawn",	Event_PlayerSpawn);
-	HookEvent("weapon_fire",	Event_WeaponFire);
-	HookEvent("player_death",	Event_PlayerDeath, EventHookMode_Pre);
+	HookEvent("player_spawn", Event_PlayerSpawn);
+	HookEvent("weapon_fire", Event_WeaponFire);
+	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Pre);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 
 	if (Engine_Version == Engine_CSGO)
@@ -170,26 +172,73 @@ public OnPluginStart()
 	}
 }
 
-public OnFFChange(Handle:hCvar, const String:sOldValue[], const String:sNewValue[])				g_Cvar_bFF = GetConVarBool(hCvar);
-public OnCountChange(Handle:hCvar, const String:sOldValue[], const String:sNewValue[])			g_Cvar_iCount = GetConVarInt(hCvar);
-public OnLimitChange(Handle:hCvar, const String:sOldValue[], const String:sNewValue[])		g_Cvar_iLimit = GetConVarInt(hCvar);
-public OnStealChange(Handle:hCvar, const String:sOldValue[], const String:sNewValue[])			g_Cvar_bSteal = GetConVarBool(hCvar);
-public OnVelocityChange(Handle:hCvar, const String:sOldValue[], const String:sNewValue[])		g_Cvar_fVelocity = GetConVarFloat(hCvar);
-public OnDamageChange(Handle:hCvar, const String:sOldValue[], const String:sNewValue[])			g_Cvar_fDamage = GetConVarFloat(hCvar);
-public OnHSDamageChange(Handle:hCvar, const String:sOldValue[], const String:sNewValue[])		g_Cvar_fHSDamage = GetConVarFloat(hCvar);
-public OnModelScaleChange(Handle:hCvar, const String:sOldValue[], const String:sNewValue[])		g_Cvar_fModelScale = GetConVarFloat(hCvar);
-public OnGravityChange(Handle:hCvar, const String:sOldValue[], const String:sNewValue[])		g_Cvar_fGravity = GetConVarFloat(hCvar);
-public OnElasticityChange(Handle:hCvar, const String:sOldValue[], const String:sNewValue[])		g_Cvar_fElasticity = GetConVarFloat(hCvar);
-public OnMaxLifeTimeChange(Handle:hCvar, const String:sOldValue[], const String:sNewValue[])	g_Cvar_fMaxLifeTime = GetConVarFloat(hCvar);
-public OnTrailsChange(Handle:hCvar, const String:sOldValue[], const String:sNewValue[])			g_Cvar_bTrails = GetConVarBool(hCvar);
-
-public OnMapStart()
+public void OnFFChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
 {
-	g_iTrailSprite = PrecacheModel(Engine_Version == Engine_CSGO ? "effects/blueblacklargebeam.vmt":"sprites/bluelaser1.vmt");
+	g_Cvar_bFF = GetConVarBool(hCvar);
+}
+
+public void OnCountChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+{
+	g_Cvar_iCount = GetConVarInt(hCvar);
+}
+
+public void OnLimitChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+{
+	g_Cvar_iLimit = GetConVarInt(hCvar);
+}
+
+public void OnStealChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+{
+	g_Cvar_bSteal = GetConVarBool(hCvar);
+}
+
+public void OnVelocityChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+{
+	g_Cvar_fVelocity = GetConVarFloat(hCvar);
+}
+
+public void OnDamageChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+{
+	g_Cvar_fDamage = GetConVarFloat(hCvar);
+}
+
+public void OnHSDamageChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+{
+	g_Cvar_fHSDamage = GetConVarFloat(hCvar);
+}
+
+public void OnModelScaleChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+{
+	g_Cvar_fModelScale = GetConVarFloat(hCvar);
+}
+
+public void OnGravityChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+{
+	g_Cvar_fGravity = GetConVarFloat(hCvar);
+}
+
+public void OnElasticityChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+{
+	g_Cvar_fElasticity = GetConVarFloat(hCvar);
+}
+
+public void OnMaxLifeTimeChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+{
+	g_Cvar_fMaxLifeTime = GetConVarFloat(hCvar);
+}
+
+public void OnTrailsChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+{
+	g_Cvar_bTrails = GetConVarBool(hCvar);
+}
+
+public void OnMapStart()
+{
+	g_iTrailSprite = PrecacheModel(Engine_Version == Engine_CSGO ? "effects/blueblacklargebeam.vmt" : "sprites/bluelaser1.vmt");
 	g_iBloodDecal = PrecacheDecal("sprites/blood.vmt");
 }
 
-public OnClientPutInServer(iClient)
+public void OnClientPutInServer(int iClient)
 {
 	if(!IsClientSourceTV(iClient) && !IsClientReplay(iClient))
 	{
@@ -199,7 +248,7 @@ public OnClientPutInServer(iClient)
 	}
 }
 
-public Action:OnTakeDamage(iVictim, &iAttacker, &inflictor, &Float:damage, &damagetype)
+public Action OnTakeDamage(int iVictim, int &iAttacker, int &inflictor, float &damage, int &damagetype)
 {
 	if(0 < inflictor <= MaxClients && inflictor == iAttacker && damagetype == g_iDmgType)
 	{
@@ -207,22 +256,22 @@ public Action:OnTakeDamage(iVictim, &iAttacker, &inflictor, &Float:damage, &dama
 	}
 }
 
-public Event_RoundEnd(Handle:hEvent, const String:sEvName[], bool:bDontBroadcast)
+public void Event_RoundEnd(Event hEvent, const char[] sEvName, bool bDontBroadcast)
 {
-	for(new i = 1; i <= MaxClients; ++i)
+	for(int i = 1; i <= MaxClients; ++i)
 	{
 		g_iPlayerKnives[i] = 0;
 	}
 }
 
-public Event_PlayerSpawn(Handle:hEvent, const String:sEvName[], bool:bDontBroadcast)
+public void Event_PlayerSpawn(Event hEvent, const char[] sEvName, bool bDontBroadcast)
 {
-	new iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
-//	PrintToChat(iClient, "%s: %d", sEvName, g_iPlayerKniveCount[iClient]);
+	int iClient = GetClientOfUserId(hEvent.GetInt("userid"));
+//	PrintToChat(iClient, "%s  %d", sEvName, g_iPlayerKniveCount[iClient]);
 
 	if(g_iPlayerKniveCount[iClient] != 0)
 	{
-		decl iCount, iDummy;
+		int iCount, iDummy;
 		iDummy = iCount = g_iPlayerKniveCount[iClient];
 
 		switch (Forward_OnKnifesGiven(iClient, iCount, KNIFES_BY_DEFAULT))
@@ -241,12 +290,12 @@ public Event_PlayerSpawn(Handle:hEvent, const String:sEvName[], bool:bDontBroadc
 	}
 }
 
-public Action:Event_PlayerDeath(Handle:hEvent, const String:sEvName[], bool:bDontBroadcast)
+public Action Event_PlayerDeath(Event hEvent, const char[] sEvName, bool bDontBroadcast)
 {
-	new iClient = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
+	int iClient = GetClientOfUserId(hEvent.GetInt("attacker"));
 	if(iClient)
 	{
-		decl String:sWeapon[32];
+		char sWeapon[32];
 		GetEventString(hEvent, "weapon", sWeapon, sizeof(sWeapon));
 
 		if(StrContains(sWeapon, "knife", true) != -1 || StrContains(sWeapon, "bayonet", true) != -1)
@@ -256,16 +305,16 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:sEvName[], bool:bDon
 	
 			if(g_Cvar_bSteal && g_iPlayerKniveCount[iClient] != -1)
 			{
-				new iVictim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+				int iVictim = GetClientOfUserId(hEvent.GetInt("userid"));
 				if(g_iPlayerKnives[iVictim] != -1 && g_iPlayerKniveCount[iVictim] != -1)
 				{
-					decl iDummy, iCount, Action:eResult;
+					int iDummy, iCount;
 					iCount = iDummy = g_iPlayerKnives[iVictim];
 					if(g_iPlayerKnives[iVictim] + iCount > g_iPlayerKniveCountLimit[iVictim])
 					{
 						iCount = g_iPlayerKniveCountLimit[iVictim] - g_iPlayerKnives[iVictim];
 					}
-					eResult = Forward_OnKnifesGiven(iVictim, iCount, KNIFES_BY_STEAL);
+					Action eResult = Forward_OnKnifesGiven(iVictim, iCount, KNIFES_BY_STEAL);
 					if(eResult > Plugin_Changed)
 					{
 						if(eResult == Plugin_Continue)
@@ -275,7 +324,7 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:sEvName[], bool:bDon
 
 						g_iPlayerKnives[iVictim] += iCount;
 
-						PrintHintText(iVictim, "+%d ножа (Всего : %d)", iCount, g_iPlayerKnives[iVictim]);
+						PrintHintText(iVictim, "+%d ножа (Всего   %d)", iCount, g_iPlayerKnives[iVictim]);
 					}
 				}
 			}
@@ -285,18 +334,18 @@ public Action:Event_PlayerDeath(Handle:hEvent, const String:sEvName[], bool:bDon
 	return Plugin_Continue;
 }
 
-public Event_WeaponFire(Handle:hEvent, const String:sEvName[], bool:bDontBroadcast)
+public void Event_WeaponFire(Event hEvent, const char[] sEvName, bool bDontBroadcast)
 {
-	new iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
-//	PrintToChat(iClient, "%s: '%s', %b && %b", sEvName, sWeapon, g_bHasAccess[iClient], HasClientKnives(iClient));
-//	PrintToChat(iClient, "%s: %d", sEvName, g_iPlayerKnives[iClient]);
+	int iClient = GetClientOfUserId(hEvent.GetInt("userid"));
+//	PrintToChat(iClient, "%s  '%s', %b && %b", sEvName, sWeapon, g_bHasAccess[iClient], HasClientKnives(iClient));
+//	PrintToChat(iClient, "%s  %d", sEvName, g_iPlayerKnives[iClient]);
 	if(g_iPlayerKnives[iClient] > 0 || g_iPlayerKnives[iClient] == -1)
 	{
-		decl String:sWeapon[32];
+		char sWeapon[32];
 		GetEventString(hEvent, "weapon", sWeapon, sizeof(sWeapon));
 	//	PrintToChat(iClient, "weapon = '%s'", sWeapon);
 
-	//	PrintToChat(iClient, "%s: '%s'", sEvName, sWeapon);
+	//	PrintToChat(iClient, "%s  '%s'", sEvName, sWeapon);
 		if(StrContains(sWeapon, "knife", true) != -1 || StrContains(sWeapon, "bayonet", true) != -1)
 		{
 		//	PrintToChat(iClient, "StrContains");
@@ -309,14 +358,14 @@ public Event_WeaponFire(Handle:hEvent, const String:sEvName[], bool:bDontBroadca
 	}
 }
 
-public CreateKnife(iClient)
+int CreateKnife(int iClient)
 {
 	if(!IsClientInGame(iClient))
 	{
 		return;
 	}
 //	PrintToChat(iClient, "CreateKnife");
-	new iKnife = CreateEntityByName("smokegrenade_projectile");
+	int iKnife = CreateEntityByName("smokegrenade_projectile");
 	DispatchKeyValue(iKnife, "classname", "throwing_knife");
 
 	if(!DispatchSpawn(iKnife))
@@ -324,15 +373,15 @@ public CreateKnife(iClient)
 		return;
 	}
 
-	PushArrayCell(g_hThrownKnives, EntIndexToEntRef(iKnife));
+	g_hThrownKnives.Push(EntIndexToEntRef(iKnife));
 
-	new iTeam = GetClientTeam(iClient);
+	int iTeam = GetClientTeam(iClient);
 	SetEntPropEnt(iKnife, Prop_Send, "m_hOwnerEntity", iClient);
 	SetEntPropEnt(iKnife, Prop_Send, "m_hThrower", iClient);
 	SetEntProp(iKnife, Prop_Send, "m_iTeamNum", iTeam);
 
-	decl String:sBuffer[PLATFORM_MAX_PATH];
-	new iWeaponKnife = GetPlayerWeaponSlot(iClient, 2);
+	char sBuffer[PLATFORM_MAX_PATH];
+	int iWeaponKnife = GetPlayerWeaponSlot(iClient, 2);
 	if(iWeaponKnife != -1)
 	{
 		GetEntPropString(iWeaponKnife, Prop_Data, "m_ModelName", sBuffer, sizeof(sBuffer));
@@ -369,7 +418,7 @@ public CreateKnife(iClient)
 	SetEntPropFloat(iKnife, Prop_Send, "m_flElasticity", g_Cvar_fElasticity);
 	SetEntPropFloat(iKnife, Prop_Data, "m_flGravity", g_Cvar_fGravity);
 
-	decl Float:fOrigin[3], Float:fAngles[3], Float:sPos[3], Float:fPlayerVelocity[3], Float:fVelocity[3];
+	float fOrigin[3], fAngles[3], sPos[3], fPlayerVelocity[3], fVelocity[3];
 	GetClientEyePosition(iClient, fOrigin);
 	GetClientEyeAngles(iClient, fAngles);
 
@@ -382,7 +431,7 @@ public CreateKnife(iClient)
 	ScaleVector(fVelocity, g_Cvar_fVelocity);
 	AddVectors(fVelocity, fPlayerVelocity, fVelocity);
 
-	SetEntPropVector(iKnife, Prop_Data, "m_vecAngVelocity", Float:{4000.0, 0.0, 0.0});
+	SetEntPropVector(iKnife, Prop_Data, "m_vecAngVelocity", view_as<float>({4000.0, 0.0, 0.0}));
 
 	SetEntProp(iKnife, Prop_Data, "m_nNextThinkTick", -1);
 	Format(sBuffer, sizeof(sBuffer), "!self,Kill,,%0.1f,-1", g_Cvar_fMaxLifeTime);
@@ -411,23 +460,23 @@ public CreateKnife(iClient)
 	if(g_iPlayerKnives[iClient] != -1)
 	{
 		g_iPlayerKnives[iClient]--;
-		PrintHintText(iClient, "Ножей осталось: %d", g_iPlayerKnives[iClient]);
+		PrintHintText(iClient, "Ножей осталось  %d", g_iPlayerKnives[iClient]);
 	}
 }
 
-public Action:KnifeHit(iKnife, iVictim)
+public Action KnifeHit(int iKnife, int iVictim)
 {
 	if(0 < iVictim && iVictim <= MaxClients && IsClientInGame(iVictim))
 	{
-		new iAttacker = GetEntPropEnt(iKnife, Prop_Send, "m_hThrower");
+		int iAttacker = GetEntPropEnt(iKnife, Prop_Send, "m_hThrower");
 	
 	//	PrintToChat(iAttacker, "KnifeHit(%d) -> %N %d", iKnife, iVictim, iVictim);
 		
 		/*
-		decl String:sClassName[64];
+		char sClassName[64];
 		GetEntPropString(iKnife, Prop_Data, "m_iClassname", sClassName, sizeof(sClassName));
-		PrintToChat(iAttacker, "m_iClassname: '%s'", sClassName);
-		m_iClassname: 'throwing_knife'
+		PrintToChat(iAttacker, "m_iClassname  '%s'", sClassName);
+		m_iClassname  'throwing_knife'
 		*/
 
 		if(!g_Cvar_bFF && GetClientTeam(iAttacker) == GetClientTeam(iVictim))
@@ -435,7 +484,7 @@ public Action:KnifeHit(iKnife, iVictim)
 			return Plugin_Continue;
 		}
 
-		decl Float:fVictimEye[3], Float:fDamagePosition[3], Float:fDamageForce[3];
+		float fVictimEye[3], fDamagePosition[3], fDamageForce[3];
 		GetClientEyePosition(iVictim, fVictimEye);
 
 		GetEntPropVector(iKnife, Prop_Data, "m_vecOrigin", fDamagePosition);
@@ -443,13 +492,13 @@ public Action:KnifeHit(iKnife, iVictim)
 
 		if(GetVectorLength(fDamageForce) != 0.0)
 		{
-			new Float:distance = GetVectorDistance(fDamagePosition, fVictimEye);
+			float distance = GetVectorDistance(fDamagePosition, fVictimEye);
 			g_bHeadshot[iAttacker] = distance <= 15.0;
 
-			decl iDmgType, Float:fDamage, bool:bHeadshot;
-			iDmgType = g_iDmgType;
+			float fDamage;
+			int iDmgType = g_iDmgType;
 
-			bHeadshot = g_bHeadshot[iAttacker];
+			bool bHeadshot = g_bHeadshot[iAttacker];
 			if(g_bHeadshot[iAttacker])
 			{
 				fDamage = g_Cvar_fHSDamage;
@@ -461,8 +510,8 @@ public Action:KnifeHit(iKnife, iVictim)
 			
 		//	PrintToChat(iAttacker, "fDamage = %.2f", fDamage);
 
-			new Float:fDummyDamage = fDamage,
-				bool:bDummyHeadshot = bHeadshot;
+			float fDummyDamage = fDamage;
+			bool bDummyHeadshot = bHeadshot;
 
 			switch(Forward_OnKnifeDamage(iAttacker, iVictim, iKnife, fDamage, bHeadshot))
 			{
@@ -489,7 +538,7 @@ public Action:KnifeHit(iKnife, iVictim)
 			}
 			else
 			{
-				new inflictor = GetPlayerWeaponSlot(iAttacker, 2);
+				int inflictor = GetPlayerWeaponSlot(iAttacker, 2);
 
 				if(inflictor == -1)
 				{
@@ -499,14 +548,14 @@ public Action:KnifeHit(iKnife, iVictim)
 				SDKHooks_TakeDamage(iVictim, inflictor, iAttacker, fDamage, iDmgType, iKnife, fDamageForce, fDamagePosition);
 			}
 
-			TE_SetupBloodSprite(fDamagePosition, Float:{0.0, 0.0, 0.0}, {255, 0, 0, 255}, 1, g_iBloodDecal, g_iBloodDecal);
+			TE_SetupBloodSprite(fDamagePosition, view_as<float>({0.0, 0.0, 0.0}), {255, 0, 0, 255}, 1, g_iBloodDecal, g_iBloodDecal);
 			TE_SendToAll(0.0);
 
 			SetVariantString("csblood");
 			AcceptEntityInput(iKnife, "DispatchEffect");
 			AcceptEntityInput(iKnife, "Kill");
 
-			new ragdoll = GetEntPropEnt(iVictim, Prop_Send, "m_hRagdoll");
+			int ragdoll = GetEntPropEnt(iVictim, Prop_Send, "m_hRagdoll");
 			if(ragdoll != -1)
 			{
 				ScaleVector(fDamageForce, 50.0);
@@ -516,10 +565,10 @@ public Action:KnifeHit(iKnife, iVictim)
 			}
 		}
 	}
-	else if(FindValueInArray(g_hThrownKnives, EntIndexToEntRef(iVictim)) != -1) // ножи столкнулись
+	else if(g_hThrownKnives.FindValue(EntIndexToEntRef(iVictim)) != -1) // ножи столкнулись
 	{
 		SDKUnhook(iKnife, SDKHook_Touch, KnifeHit);
-		decl Float:sPos[3], Float:dir[3];
+		float sPos[3], dir[3];
 		GetEntPropVector(iKnife, Prop_Data, "m_vecOrigin", sPos);
 		dir[0] = 0.0;
 		dir[1] = 0.0;
@@ -534,51 +583,51 @@ public Action:KnifeHit(iKnife, iVictim)
 	return Plugin_Continue;
 }
 
-public OnEntityDestroyed(iEntity)
+public void OnEntityDestroyed(int iEntity)
 {
 	if(IsValidEdict(iEntity))
 	{
-		new index = FindValueInArray(g_hThrownKnives, EntIndexToEntRef(iEntity));
+		int index = g_hThrownKnives.FindValue(EntIndexToEntRef(iEntity));
 		if(index != -1)
 		{
-			RemoveFromArray(g_hThrownKnives, index);
+			g_hThrownKnives.Erase(index);
 		}
 	}
 }
 
-public Event_RoundFreezeEnd(Handle:hEvent, const String:sEvName[], bool:bDontBroadcast)
+public void Event_RoundFreezeEnd(Event hEvent, const char[] sEvName, bool bDontBroadcast)
 {
 	g_iPointHurt = CreateEntityByName("point_hurt");
 	if (IsValidEntity(g_iPointHurt))
 	{
-		DispatchKeyValue(g_iPointHurt, "DamageTarget", 	"hurt");
-		DispatchKeyValue(g_iPointHurt, "DamageType", 	"0");	   
+		DispatchKeyValue(g_iPointHurt, "DamageTarget", "hurt");
+		DispatchKeyValue(g_iPointHurt, "DamageType", "0");	   
 		DispatchSpawn(g_iPointHurt);
 	}
 }
 
-HurtClient(iClient, iAttacker, Float:fDamage, dmgtype, const String:sWeapon[])
+void HurtClient(int iClient, int iAttacker, float fDamage, int dmgtype, const char[] sWeapon)
 {
 	if (IsValidEntity(g_iPointHurt))
 	{
-		decl String:sBuffer[8], String:sClientName[64];
+		char sBuffer[8], sClientName[64];
 		GetEntPropString(iClient, Prop_Data, "m_iName", sClientName, sizeof(sClientName));
-		DispatchKeyValue(iClient, 			"targetname", 	"hurt");
+		DispatchKeyValue(iClient, "targetname", "hurt");
 
 		IntToString(dmgtype, sBuffer, sizeof(sBuffer));
-		DispatchKeyValue(g_iPointHurt,	"DamageType", 	sBuffer);
+		DispatchKeyValue(g_iPointHurt, "DamageType", 	sBuffer);
 
 		FloatToString(fDamage, sBuffer, sizeof(sBuffer));
-		DispatchKeyValue(g_iPointHurt,	"Damage", 		sBuffer);
+		DispatchKeyValue(g_iPointHurt, "Damage", sBuffer);
 
-		DispatchKeyValue(g_iPointHurt,	"classname", 	sWeapon);
+		DispatchKeyValue(g_iPointHurt, "classname", sWeapon);
 		
-		AcceptEntityInput(g_iPointHurt,	"Hurt", 		iAttacker);
-		DispatchKeyValue(iClient,		"targetname", 	sClientName[0] ? sClientName:"nohurt");
+		AcceptEntityInput(g_iPointHurt, "Hurt", iAttacker);
+		DispatchKeyValue(iClient, "targetname", sClientName[0] ? sClientName : "nohurt");
 	}
 }
 
-bool:CheckClient(iClient, String:sError[], iLength)
+bool CheckClient(int iClient, char[] sError, int iLength)
 {
 	if (iClient < 1 || iClient > MaxClients)
 	{
@@ -601,11 +650,11 @@ bool:CheckClient(iClient, String:sError[], iLength)
 	return true;
 }
 
-public Native_GetClientKnives(Handle:hPlugin, iNumParams)
+public int Native_GetClientKnives(Handle hPlugin, int iNumParams)
 {
-	new iClient = GetNativeCell(1);
+	int iClient = GetNativeCell(1);
 	
-	decl String:sError[64];
+	char sError[64];
 	if (!CheckClient(iClient, sError, sizeof(sError)))
 	{
 		ThrowNativeError(SP_ERROR_NATIVE, sError);
@@ -626,23 +675,23 @@ public Native_GetClientKnives(Handle:hPlugin, iNumParams)
 	return 0;
 }
 
-public Native_SetClientKnives(Handle:hPlugin, iNumParams)
+public int Native_SetClientKnives(Handle hPlugin, int iNumParams)
 {
-	new iClient = GetNativeCell(1);
+	int iClient = GetNativeCell(1);
 	
-	decl String:sError[64];
+	char sError[64];
 	if (!CheckClient(iClient, sError, sizeof(sError)))
 	{
 		ThrowNativeError(SP_ERROR_NATIVE, sError);
 	}
 
-	new iCount = GetNativeCell(2);
+	int iCount = GetNativeCell(2);
 	if(iCount < -1)
 	{
 		ThrowNativeError(SP_ERROR_NATIVE, "Invalid amount (%i)", iCount);
 	}
 	
-//	LogMessage("Native_SetClientKnives: %N = %d (%b)", iClient, iCount, GetNativeCell(2));
+//	LogMessage("Native_SetClientKnives  %N = %d (%b)", iClient, iCount, GetNativeCell(2));
 
 	if(GetNativeCell(3))
 	{
@@ -663,11 +712,11 @@ public Native_SetClientKnives(Handle:hPlugin, iNumParams)
 	return 0;
 }
 
-public Native_SetClientDefKnives(Handle:hPlugin, iNumParams)
+public int Native_SetClientDefKnives(Handle hPlugin, int iNumParams)
 {
-	new iClient = GetNativeCell(1);
+	int iClient = GetNativeCell(1);
 	
-	decl String:sError[64];
+	char sError[64];
 	if (!CheckClient(iClient, sError, sizeof(sError)))
 	{
 		ThrowNativeError(SP_ERROR_NATIVE, sError);
@@ -678,11 +727,11 @@ public Native_SetClientDefKnives(Handle:hPlugin, iNumParams)
 	return g_iPlayerKniveCount[iClient];
 }
 
-public Native_GetClientKnivesLimit(Handle:hPlugin, iNumParams)
+public int Native_GetClientKnivesLimit(Handle hPlugin, int iNumParams)
 {
-	new iClient = GetNativeCell(1);
+	int iClient = GetNativeCell(1);
 	
-	decl String:sError[64];
+	char sError[64];
 	if (!CheckClient(iClient, sError, sizeof(sError)))
 	{
 		ThrowNativeError(SP_ERROR_NATIVE, sError);
@@ -691,23 +740,23 @@ public Native_GetClientKnivesLimit(Handle:hPlugin, iNumParams)
 	return g_iPlayerKniveCountLimit[iClient];
 }
 
-public Native_SetClientKnivesLimit(Handle:hPlugin, iNumParams)
+public int Native_SetClientKnivesLimit(Handle hPlugin, int iNumParams)
 {
-	new iClient = GetNativeCell(1);
+	int iClient = GetNativeCell(1);
 	
-	decl String:sError[64];
+	char sError[64];
 	if (!CheckClient(iClient, sError, sizeof(sError)))
 	{
 		ThrowNativeError(SP_ERROR_NATIVE, sError);
 	}
 
-	new iLimit = GetNativeCell(2);
+	int iLimit = GetNativeCell(2);
 	if(iLimit < -1)
 	{
 		ThrowNativeError(SP_ERROR_NATIVE, "Invalid amount (%i)", iLimit);
 	}
 	
-//	LogMessage("Native_SetClientKnivesLimit: %N = %d (%b)", iClient, iLimit, GetNativeCell(2));
+//	LogMessage("Native_SetClientKnivesLimit  %N = %d (%b)", iClient, iLimit, GetNativeCell(2));
 //	LogMessage("g_iPlayerKniveCountLimit = %d", g_iPlayerKniveCountLimit[iClient]);
 
 	g_iPlayerKniveCountLimit[iClient] = iLimit;
@@ -716,11 +765,11 @@ public Native_SetClientKnivesLimit(Handle:hPlugin, iNumParams)
 	return g_iPlayerKniveCountLimit[iClient];
 }
 
-public Native_SetClientDefKnivesLimit(Handle:hPlugin, iNumParams)
+public int Native_SetClientDefKnivesLimit(Handle hPlugin, int iNumParams)
 {
-	new iClient = GetNativeCell(1);
+	int iClient = GetNativeCell(1);
 	
-	decl String:sError[64];
+	char sError[64];
 	if (!CheckClient(iClient, sError, sizeof(sError)))
 	{
 		ThrowNativeError(SP_ERROR_NATIVE, sError);
@@ -731,25 +780,25 @@ public Native_SetClientDefKnivesLimit(Handle:hPlugin, iNumParams)
 	return g_iPlayerKniveCountLimit[iClient];
 }
 
-public Native_GiveClientKnives(Handle:hPlugin, iNumParams)
+public int Native_GiveClientKnives(Handle hPlugin, int iNumParams)
 {
-	new iClient = GetNativeCell(1);
+	int iClient = GetNativeCell(1);
 	
-	decl String:sError[64];
+	char sError[64];
 	if (!CheckClient(iClient, sError, sizeof(sError)))
 	{
 		ThrowNativeError(SP_ERROR_NATIVE, sError);
 	}
 
-	new iCount = GetNativeCell(2);
+	int iCount = GetNativeCell(2);
 	if(iCount < 0)
 	{
 		ThrowNativeError(SP_ERROR_NATIVE, "Invalid amount (%i)", iCount);
 	}
 	
-//	LogMessage("Native_GiveClientKnives: %N = %d (%b)", iClient, iCount, GetNativeCell(3));
+//	LogMessage("Native_GiveClientKnives  %N = %d (%b)", iClient, iCount, GetNativeCell(3));
 
-	new iDummy = iCount;
+	int iDummy = iCount;
 
 	switch (Forward_OnKnifesGiven(iClient, iCount, KNIFES_BY_NATIVE))
 	{
@@ -784,23 +833,23 @@ public Native_GiveClientKnives(Handle:hPlugin, iNumParams)
 	return 0;
 }
 
-public Native_TakeClientKnives(Handle:hPlugin, iNumParams)
+public int Native_TakeClientKnives(Handle hPlugin, int iNumParams)
 {
-	new iClient = GetNativeCell(1);
+	int iClient = GetNativeCell(1);
 	
-	decl String:sError[64];
+	char sError[64];
 	if (!CheckClient(iClient, sError, sizeof(sError)))
 	{
 		ThrowNativeError(SP_ERROR_NATIVE, sError);
 	}
 
-	new iCount = GetNativeCell(2);
+	int iCount = GetNativeCell(2);
 	if(iCount < 1)
 	{
 		ThrowNativeError(SP_ERROR_NATIVE, "Invalid amount (%i)", iCount);
 	}
 
-	new iDummy = iCount;
+	int iDummy = iCount;
 
 	switch (Forward_OnKnifesTaken(iClient, iCount, KNIFES_BY_NATIVE))
 	{
@@ -839,9 +888,9 @@ public Native_TakeClientKnives(Handle:hPlugin, iNumParams)
 	return 0;
 }
 
-public Native_IsEntityThrowingKnife(Handle:hPlugin, iNumParams)
+public int Native_IsEntityThrowingKnife(Handle hPlugin, int iNumParams)
 {
-	new iEntity = GetNativeCell(1);
+	int iEntity = GetNativeCell(1);
 
 	if (iEntity < 1 || iEntity > 2048 || !IsValidEntity(iEntity))
 	{
@@ -849,12 +898,12 @@ public Native_IsEntityThrowingKnife(Handle:hPlugin, iNumParams)
 		return false;
 	}
 
-	return FindValueInArray(g_hThrownKnives, EntIndexToEntRef(iEntity)) != -1;
+	return g_hThrownKnives.FindValue(EntIndexToEntRef(iEntity)) != -1;
 }
 
-Action:Forward_OnKnifeDamage(iAttacker, iClient, iKnife, &Float:fDamage, &bool:bHeadShot)
+Action Forward_OnKnifeDamage(int iAttacker, int iClient, int iKnife, float &fDamage, bool &bHeadShot)
 {
-	new Action:eResult = Plugin_Continue;
+	Action eResult = Plugin_Continue;
 	
 	Call_StartForward(g_hForward_OnKnifeDamage);
 	Call_PushCell(iAttacker);
@@ -867,9 +916,9 @@ Action:Forward_OnKnifeDamage(iAttacker, iClient, iKnife, &Float:fDamage, &bool:b
 	return eResult;
 }
 
-bool:Forward_OnKnifeThrow(iClient)
+bool Forward_OnKnifeThrow(int iClient)
 {
-	new bool:bResult = true;
+	bool bResult = true;
 	
 	Call_StartForward(g_hForward_OnKnifeThrow);
 	Call_PushCell(iClient);
@@ -878,7 +927,7 @@ bool:Forward_OnKnifeThrow(iClient)
 	return bResult;
 }
 
-Forward_OnKnifeThrowPost(iClient, iEntity)
+void Forward_OnKnifeThrowPost(int iClient, int iEntity)
 {
 	Call_StartForward(g_hForward_OnKnifeThrowPost);
 	Call_PushCell(iClient);
@@ -886,9 +935,9 @@ Forward_OnKnifeThrowPost(iClient, iEntity)
 	Call_Finish();
 }
 
-Action:Forward_OnKnifesGiven(iClient, &iCount, by_who)
+Action Forward_OnKnifesGiven(int iClient, int &iCount, int by_who)
 {
-	new Action:eResult = Plugin_Continue;
+	Action eResult = Plugin_Continue;
 	
 	Call_StartForward(g_hForward_OnKnifesGiven);
 	Call_PushCell(iClient);
@@ -899,9 +948,9 @@ Action:Forward_OnKnifesGiven(iClient, &iCount, by_who)
 	return eResult;
 }
 
-Action:Forward_OnKnifesTaken(iClient, &iCount, by_who)
+Action Forward_OnKnifesTaken(int iClient, int &iCount, int by_who)
 {
-	new Action:eResult = Plugin_Continue;
+	Action eResult = Plugin_Continue;
 	
 	Call_StartForward(g_hForward_OnKnifesTaken);
 	Call_PushCell(iClient);

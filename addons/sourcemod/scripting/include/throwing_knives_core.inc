@@ -20,7 +20,7 @@
  * 			Вернуть Plugin_Changed чтобы разрешить с изменением.
  * 			Вернуть Plugin_Continue чтобы разрешить без изменений.
 */
-forward Action:TKC_OnKnifeDamage(iAttacker, iClient, iKnife, &Float:fDamage, &bool:bHeadShot);
+forward Action TKC_OnKnifeDamage(int iAttacker, int iClient, int iKnife, float &fDamage, bool &bHeadShot);
 
 /**
  *	Вызывается когда игрок метает нож.
@@ -29,7 +29,7 @@ forward Action:TKC_OnKnifeDamage(iAttacker, iClient, iKnife, &Float:fDamage, &bo
  *	-
  *	@return true чтобы разрешить, false чтобы заблокировать
 */
-forward bool:TKC_OnKnifeThrow(iClient);
+forward bool TKC_OnKnifeThrow(int iClient);
 
 /**
  *	Вызывается когда игрок метнул нож.
@@ -38,7 +38,7 @@ forward bool:TKC_OnKnifeThrow(iClient);
  *	-
  * @noreturn
 */
-forward TKC_OnKnifeThrowPost(iClient, iEntity);
+forward void TKC_OnKnifeThrowPost(int iClient, int iEntity);
 
 /**
  *	Вызывается когда игрок получает ножи.
@@ -51,7 +51,7 @@ forward TKC_OnKnifeThrowPost(iClient, iEntity);
  * 			Вернуть Plugin_Changed чтобы разрешить с изменением.
  * 			Вернуть Plugin_Continue чтобы разрешить без изменений.
 */
-forward Action:TKC_OnKnifesGiven(iClient, &iCount, by_who);
+forward Action TKC_OnKnifesGiven(int iClient, int &iCount, int by_who);
 
 /**
  *	Вызывается когда игрок теряет ножи.
@@ -64,7 +64,7 @@ forward Action:TKC_OnKnifesGiven(iClient, &iCount, by_who);
  * 			Вернуть Plugin_Changed чтобы разрешить с изменением.
  * 			Вернуть Plugin_Continue чтобы разрешить без изменений.
 */
-forward Action:TKC_OnKnifesTaken(iClient, &iCount, by_who);
+forward Action TKC_OnKnifesTaken(int iClient, int &iCount, int by_who);
 
 /**
  *	Получает количество ножей у игрока.
@@ -76,7 +76,7 @@ forward Action:TKC_OnKnifesTaken(iClient, &iCount, by_who);
  *	-
  * @return	Количество ножей, -1 если бесконечно.
 */
-native TKC_GetClientKnives(iClient, bool:bType);
+native int TKC_GetClientKnives(int iClient, bool bType);
 
 /**
  *	Устанавливает количество ножей игроку.
@@ -89,7 +89,7 @@ native TKC_GetClientKnives(iClient, bool:bType);
  *	-
  * @noreturn
 */
-native TKC_SetClientKnives(iClient, iCount, bool:bType);
+native void TKC_SetClientKnives(int iClient, int iCount, bool bType);
 
 /**
  *	Устанавливает стандартное количество ножей игроку.
@@ -98,7 +98,7 @@ native TKC_SetClientKnives(iClient, iCount, bool:bType);
  *	-
  * @noreturn
 */
-native TKC_SetClientDefKnives(iClient);
+native void TKC_SetClientDefKnives(int iClient);
 
 /**
  *	Получает лимит количества ножей у игрока.
@@ -107,7 +107,7 @@ native TKC_SetClientDefKnives(iClient);
  *	-
  * @return	Лимит количества ножей, -1 если бесконечно.
 */
-native TKC_GetClientKnivesLimit(iClient);
+native int TKC_GetClientKnivesLimit(int iClient);
 
 /**
  *	Устанавливает лимит количества ножей у игрока.
@@ -117,7 +117,7 @@ native TKC_GetClientKnivesLimit(iClient);
  *	-
  * @noreturn
 */
-native TKC_SetClientKnivesLimit(iClient, iCount);
+native void TKC_SetClientKnivesLimit(int iClient, int iCount);
 
 /**
  *	Устанавливает стандартный лимит количества ножей у игрока.
@@ -126,7 +126,7 @@ native TKC_SetClientKnivesLimit(iClient, iCount);
  *	-
  * @noreturn
 */
-native TKC_SetClientDefKnivesLimit(iClient);
+native void TKC_SetClientDefKnivesLimit(int iClient);
 
 /**
  *	Добавляет ножи игроку.
@@ -139,7 +139,7 @@ native TKC_SetClientDefKnivesLimit(iClient);
  *	-
  * @return	true в случае успеха, иначе false.
 */
-native bool:TKC_GiveClientKnives(iClient, iCount, bool:bType);
+native bool  TKC_GiveClientKnives(int iClient, int iCount, bool bType);
 
 /**
  *	Отнимает ножи у игрока.
@@ -152,7 +152,7 @@ native bool:TKC_GiveClientKnives(iClient, iCount, bool:bType);
  *	-
  * @return	true в случае успеха, иначе false.
 */
-native bool:TKC_TakeClientKnives(iClient, iCount, bool:bType);
+native bool TKC_TakeClientKnives(int iClient, int iCount, bool bType);
 
 /**
  *	Проверяет является ли сущность ножем.
@@ -161,9 +161,9 @@ native bool:TKC_TakeClientKnives(iClient, iCount, bool:bType);
  *	-
  * @return	true если сущность нож, иначе false.
 */
-native bool:TKC_IsEntityThrowingKnife(iEntity);
+native bool TKC_IsEntityThrowingKnife(int iEntity);
 
-public SharedPlugin:__pl_throwing_knives_core= 
+public SharedPlugin __pl_throwing_knives_core= 
 {
 	name = "throwing_knives_core",
 	file = "Throwing_Knives_Core.smx",
@@ -173,3 +173,18 @@ public SharedPlugin:__pl_throwing_knives_core=
 	required = 0
 #endif
 };
+
+#if !defined REQUIRE_PLUGIN
+public void __pl_throwing_knives_core_SetNTVOptional()
+{
+	MarkNativeAsOptional("TKC_GetClientKnives");
+	MarkNativeAsOptional("TKC_SetClientKnives");
+	MarkNativeAsOptional("TKC_SetClientDefKnives");
+	MarkNativeAsOptional("TKC_GetClientKnivesLimit");
+	MarkNativeAsOptional("TKC_SetClientKnivesLimit");
+	MarkNativeAsOptional("TKC_SetClientDefKnivesLimit");
+	MarkNativeAsOptional("TKC_GiveClientKnives");
+	MarkNativeAsOptional("TKC_TakeClientKnives");
+	MarkNativeAsOptional("TKC_IsEntityThrowingKnife");
+}
+#endif
