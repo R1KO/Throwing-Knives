@@ -172,62 +172,62 @@ public void OnPluginStart()
 	}
 }
 
-public void OnFFChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+public void OnFFChange(ConVar hCvar, const char[] szOldValue, const char[] szNewValue)
 {
 	g_Cvar_bFF = GetConVarBool(hCvar);
 }
 
-public void OnCountChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+public void OnCountChange(ConVar hCvar, const char[] szOldValue, const char[] szNewValue)
 {
 	g_Cvar_iCount = GetConVarInt(hCvar);
 }
 
-public void OnLimitChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+public void OnLimitChange(ConVar hCvar, const char[] szOldValue, const char[] szNewValue)
 {
 	g_Cvar_iLimit = GetConVarInt(hCvar);
 }
 
-public void OnStealChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+public void OnStealChange(ConVar hCvar, const char[] szOldValue, const char[] szNewValue)
 {
 	g_Cvar_bSteal = GetConVarBool(hCvar);
 }
 
-public void OnVelocityChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+public void OnVelocityChange(ConVar hCvar, const char[] szOldValue, const char[] szNewValue)
 {
 	g_Cvar_fVelocity = GetConVarFloat(hCvar);
 }
 
-public void OnDamageChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+public void OnDamageChange(ConVar hCvar, const char[] szOldValue, const char[] szNewValue)
 {
 	g_Cvar_fDamage = GetConVarFloat(hCvar);
 }
 
-public void OnHSDamageChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+public void OnHSDamageChange(ConVar hCvar, const char[] szOldValue, const char[] szNewValue)
 {
 	g_Cvar_fHSDamage = GetConVarFloat(hCvar);
 }
 
-public void OnModelScaleChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+public void OnModelScaleChange(ConVar hCvar, const char[] szOldValue, const char[] szNewValue)
 {
 	g_Cvar_fModelScale = GetConVarFloat(hCvar);
 }
 
-public void OnGravityChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+public void OnGravityChange(ConVar hCvar, const char[] szOldValue, const char[] szNewValue)
 {
 	g_Cvar_fGravity = GetConVarFloat(hCvar);
 }
 
-public void OnElasticityChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+public void OnElasticityChange(ConVar hCvar, const char[] szOldValue, const char[] szNewValue)
 {
 	g_Cvar_fElasticity = GetConVarFloat(hCvar);
 }
 
-public void OnMaxLifeTimeChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+public void OnMaxLifeTimeChange(ConVar hCvar, const char[] szOldValue, const char[] szNewValue)
 {
 	g_Cvar_fMaxLifeTime = GetConVarFloat(hCvar);
 }
 
-public void OnTrailsChange(ConVar hCvar, const char[] sOldValue, const char[] sNewValue)
+public void OnTrailsChange(ConVar hCvar, const char[] szOldValue, const char[] szNewValue)
 {
 	g_Cvar_bTrails = GetConVarBool(hCvar);
 }
@@ -256,7 +256,7 @@ public Action OnTakeDamage(int iVictim, int &iAttacker, int &inflictor, float &d
 	}
 }
 
-public void Event_RoundEnd(Event hEvent, const char[] sEvName, bool bDontBroadcast)
+public void Event_RoundEnd(Event hEvent, const char[] szEventName, bool bDontBroadcast)
 {
 	for(int i = 1; i <= MaxClients; ++i)
 	{
@@ -264,10 +264,10 @@ public void Event_RoundEnd(Event hEvent, const char[] sEvName, bool bDontBroadca
 	}
 }
 
-public void Event_PlayerSpawn(Event hEvent, const char[] sEvName, bool bDontBroadcast)
+public void Event_PlayerSpawn(Event hEvent, const char[] szEventName, bool bDontBroadcast)
 {
 	int iClient = GetClientOfUserId(hEvent.GetInt("userid"));
-//	PrintToChat(iClient, "%s  %d", sEvName, g_iPlayerKniveCount[iClient]);
+//	PrintToChat(iClient, "%s  %d", szEventName, g_iPlayerKniveCount[iClient]);
 
 	if(g_iPlayerKniveCount[iClient] != 0)
 	{
@@ -290,15 +290,15 @@ public void Event_PlayerSpawn(Event hEvent, const char[] sEvName, bool bDontBroa
 	}
 }
 
-public Action Event_PlayerDeath(Event hEvent, const char[] sEvName, bool bDontBroadcast)
+public Action Event_PlayerDeath(Event hEvent, const char[] szEventName, bool bDontBroadcast)
 {
 	int iClient = GetClientOfUserId(hEvent.GetInt("attacker"));
 	if(iClient)
 	{
-		char sWeapon[32];
-		GetEventString(hEvent, "weapon", sWeapon, sizeof(sWeapon));
+		char szWeapon[32];
+		GetEventString(hEvent, "weapon", szWeapon, sizeof(szWeapon));
 
-		if(StrContains(sWeapon, "knife", true) != -1 || StrContains(sWeapon, "bayonet", true) != -1)
+		if(StrContains(szWeapon, "knife", true) != -1 || StrContains(szWeapon, "bayonet", true) != -1)
 		{
 			SetEventBool(hEvent, "headshot", g_bHeadshot[iClient]);
 			g_bHeadshot[iClient] = false;
@@ -334,19 +334,19 @@ public Action Event_PlayerDeath(Event hEvent, const char[] sEvName, bool bDontBr
 	return Plugin_Continue;
 }
 
-public void Event_WeaponFire(Event hEvent, const char[] sEvName, bool bDontBroadcast)
+public void Event_WeaponFire(Event hEvent, const char[] szEventName, bool bDontBroadcast)
 {
 	int iClient = GetClientOfUserId(hEvent.GetInt("userid"));
-//	PrintToChat(iClient, "%s  '%s', %b && %b", sEvName, sWeapon, g_bHasAccess[iClient], HasClientKnives(iClient));
-//	PrintToChat(iClient, "%s  %d", sEvName, g_iPlayerKnives[iClient]);
+//	PrintToChat(iClient, "%s  '%s', %b && %b", szEventName, szWeapon, g_bHasAccess[iClient], HasClientKnives(iClient));
+//	PrintToChat(iClient, "%s  %d", szEventName, g_iPlayerKnives[iClient]);
 	if(g_iPlayerKnives[iClient] > 0 || g_iPlayerKnives[iClient] == -1)
 	{
-		char sWeapon[32];
-		GetEventString(hEvent, "weapon", sWeapon, sizeof(sWeapon));
-	//	PrintToChat(iClient, "weapon = '%s'", sWeapon);
+		char szWeapon[32];
+		GetEventString(hEvent, "weapon", szWeapon, sizeof(szWeapon));
+	//	PrintToChat(iClient, "weapon = '%s'", szWeapon);
 
-	//	PrintToChat(iClient, "%s  '%s'", sEvName, sWeapon);
-		if(StrContains(sWeapon, "knife", true) != -1 || StrContains(sWeapon, "bayonet", true) != -1)
+	//	PrintToChat(iClient, "%s  '%s'", szEventName, szWeapon);
+		if(StrContains(szWeapon, "knife", true) != -1 || StrContains(szWeapon, "bayonet", true) != -1)
 		{
 		//	PrintToChat(iClient, "StrContains");
 			if(Forward_OnKnifeThrow(iClient))
@@ -480,15 +480,6 @@ public Action KnifeHit(int iKnife, int iVictim)
 	if(0 < iVictim && iVictim <= MaxClients && IsClientInGame(iVictim))
 	{
 		int iAttacker = GetEntPropEnt(iKnife, Prop_Send, "m_hThrower");
-	
-	//	PrintToChat(iAttacker, "KnifeHit(%d) -> %N %d", iKnife, iVictim, iVictim);
-		
-		/*
-		char sClassName[64];
-		GetEntPropString(iKnife, Prop_Data, "m_iClassname", sClassName, sizeof(sClassName));
-		PrintToChat(iAttacker, "m_iClassname  '%s'", sClassName);
-		m_iClassname  'throwing_knife'
-		*/
 
 		if(!g_Cvar_bFF && GetClientTeam(iAttacker) == GetClientTeam(iVictim))
 		{
@@ -606,7 +597,7 @@ public void OnEntityDestroyed(int iEntity)
 	}
 }
 
-public void Event_RoundFreezeEnd(Event hEvent, const char[] sEvName, bool bDontBroadcast)
+public void Event_RoundFreezeEnd(Event hEvent, const char[] szEventName, bool bDontBroadcast)
 {
 	g_iPointHurt = CreateEntityByName("point_hurt");
 	if (IsValidEntity(g_iPointHurt))
@@ -617,12 +608,12 @@ public void Event_RoundFreezeEnd(Event hEvent, const char[] sEvName, bool bDontB
 	}
 }
 
-void HurtClient(int iClient, int iAttacker, float fDamage, int dmgtype, const char[] sWeapon)
+void HurtClient(int iClient, int iAttacker, float fDamage, int dmgtype, const char[] szWeapon)
 {
 	if (IsValidEntity(g_iPointHurt))
 	{
-		char szBuffer[8], sClientName[64];
-		GetEntPropString(iClient, Prop_Data, "m_iName", sClientName, sizeof(sClientName));
+		char szBuffer[8], szClientName[64];
+		GetEntPropString(iClient, Prop_Data, "m_iName", szClientName, sizeof(szClientName));
 		DispatchKeyValue(iClient, "targetname", "hurt");
 
 		IntToString(dmgtype, szBuffer, sizeof(szBuffer));
@@ -631,32 +622,32 @@ void HurtClient(int iClient, int iAttacker, float fDamage, int dmgtype, const ch
 		FloatToString(fDamage, szBuffer, sizeof(szBuffer));
 		DispatchKeyValue(g_iPointHurt, "Damage", szBuffer);
 
-		DispatchKeyValue(g_iPointHurt, "classname", sWeapon);
+		DispatchKeyValue(g_iPointHurt, "classname", szWeapon);
 		
 		AcceptEntityInput(g_iPointHurt, "Hurt", iAttacker);
-		DispatchKeyValue(iClient, "targetname", sClientName[0] ? sClientName : "nohurt");
+		DispatchKeyValue(iClient, "targetname", szClientName[0] ? szClientName : "nohurt");
 	}
 }
 
-bool CheckClient(int iClient, char[] sError, int iLength)
+bool CheckClient(int iClient, char[] szError, int iLength)
 {
 	if (iClient < 1 || iClient > MaxClients)
 	{
-		FormatEx(sError, iLength, "Client index %i is invalid", iClient);
+		FormatEx(szError, iLength, "Client index %i is invalid", iClient);
 		return false;
 	}
 	else if (!IsClientInGame(iClient))
 	{
-		FormatEx(sError, iLength, "Client index %i is not in game", iClient);
+		FormatEx(szError, iLength, "Client index %i is not in game", iClient);
 		return false;
 	}
 	else if (IsFakeClient(iClient))
 	{
-		FormatEx(sError, iLength, "Client index %i is a bot", iClient);
+		FormatEx(szError, iLength, "Client index %i is a bot", iClient);
 		return false;
 	}
 	
-	sError[0] = '\0';
+	szError[0] = '\0';
 
 	return true;
 }
@@ -665,10 +656,10 @@ public int Native_GetClientKnives(Handle hPlugin, int iNumParams)
 {
 	int iClient = GetNativeCell(1);
 	
-	char sError[64];
-	if (!CheckClient(iClient, sError, sizeof(sError)))
+	char szError[64];
+	if (!CheckClient(iClient, szError, sizeof(szError)))
 	{
-		ThrowNativeError(SP_ERROR_NATIVE, sError);
+		ThrowNativeError(SP_ERROR_NATIVE, szError);
 	}
 	
 	if(GetNativeCell(2))
@@ -690,10 +681,10 @@ public int Native_SetClientKnives(Handle hPlugin, int iNumParams)
 {
 	int iClient = GetNativeCell(1);
 	
-	char sError[64];
-	if (!CheckClient(iClient, sError, sizeof(sError)))
+	char szError[64];
+	if (!CheckClient(iClient, szError, sizeof(szError)))
 	{
-		ThrowNativeError(SP_ERROR_NATIVE, sError);
+		ThrowNativeError(SP_ERROR_NATIVE, szError);
 	}
 
 	int iCount = GetNativeCell(2);
@@ -727,10 +718,10 @@ public int Native_SetClientDefKnives(Handle hPlugin, int iNumParams)
 {
 	int iClient = GetNativeCell(1);
 	
-	char sError[64];
-	if (!CheckClient(iClient, sError, sizeof(sError)))
+	char szError[64];
+	if (!CheckClient(iClient, szError, sizeof(szError)))
 	{
-		ThrowNativeError(SP_ERROR_NATIVE, sError);
+		ThrowNativeError(SP_ERROR_NATIVE, szError);
 	}
 
 	g_iPlayerKniveCount[iClient] = g_Cvar_iCount;
@@ -742,10 +733,10 @@ public int Native_GetClientKnivesLimit(Handle hPlugin, int iNumParams)
 {
 	int iClient = GetNativeCell(1);
 	
-	char sError[64];
-	if (!CheckClient(iClient, sError, sizeof(sError)))
+	char szError[64];
+	if (!CheckClient(iClient, szError, sizeof(szError)))
 	{
-		ThrowNativeError(SP_ERROR_NATIVE, sError);
+		ThrowNativeError(SP_ERROR_NATIVE, szError);
 	}
 	
 	return g_iPlayerKniveCountLimit[iClient];
@@ -755,10 +746,10 @@ public int Native_SetClientKnivesLimit(Handle hPlugin, int iNumParams)
 {
 	int iClient = GetNativeCell(1);
 	
-	char sError[64];
-	if (!CheckClient(iClient, sError, sizeof(sError)))
+	char szError[64];
+	if (!CheckClient(iClient, szError, sizeof(szError)))
 	{
-		ThrowNativeError(SP_ERROR_NATIVE, sError);
+		ThrowNativeError(SP_ERROR_NATIVE, szError);
 	}
 
 	int iLimit = GetNativeCell(2);
@@ -780,10 +771,10 @@ public int Native_SetClientDefKnivesLimit(Handle hPlugin, int iNumParams)
 {
 	int iClient = GetNativeCell(1);
 	
-	char sError[64];
-	if (!CheckClient(iClient, sError, sizeof(sError)))
+	char szError[64];
+	if (!CheckClient(iClient, szError, sizeof(szError)))
 	{
-		ThrowNativeError(SP_ERROR_NATIVE, sError);
+		ThrowNativeError(SP_ERROR_NATIVE, szError);
 	}
 
 	g_iPlayerKniveCountLimit[iClient] = g_Cvar_iLimit;
@@ -795,10 +786,10 @@ public int Native_GiveClientKnives(Handle hPlugin, int iNumParams)
 {
 	int iClient = GetNativeCell(1);
 	
-	char sError[64];
-	if (!CheckClient(iClient, sError, sizeof(sError)))
+	char szError[64];
+	if (!CheckClient(iClient, szError, sizeof(szError)))
 	{
-		ThrowNativeError(SP_ERROR_NATIVE, sError);
+		ThrowNativeError(SP_ERROR_NATIVE, szError);
 	}
 
 	int iCount = GetNativeCell(2);
@@ -848,10 +839,10 @@ public int Native_TakeClientKnives(Handle hPlugin, int iNumParams)
 {
 	int iClient = GetNativeCell(1);
 	
-	char sError[64];
-	if (!CheckClient(iClient, sError, sizeof(sError)))
+	char szError[64];
+	if (!CheckClient(iClient, szError, sizeof(szError)))
 	{
-		ThrowNativeError(SP_ERROR_NATIVE, sError);
+		ThrowNativeError(SP_ERROR_NATIVE, szError);
 	}
 
 	int iCount = GetNativeCell(2);
