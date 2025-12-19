@@ -364,9 +364,51 @@ int CreateKnife(int iClient)
 	{
 		return;
 	}
-//	PrintToChat(iClient, "CreateKnife");
+
 	int iKnife = CreateEntityByName("smokegrenade_projectile");
 	DispatchKeyValue(iKnife, "classname", "throwing_knife");
+
+	int iTeam = GetClientTeam(iClient);
+
+	char szModel[PLATFORM_MAX_PATH];
+	int iWeaponKnife = GetPlayerWeaponSlot(iClient, 2);
+	if(iWeaponKnife != -1)
+	{
+		GetEntPropString(iWeaponKnife, Prop_Data, "m_ModelName", szModel, sizeof(szModel));
+		if(ReplaceString(szModel, sizeof(szModel), "v_knife_", "w_knife_", true) != 1)
+		{
+			szModel[0] = '\0';
+		}
+		else if(Engine_Version == Engine_CSGO && ReplaceString(szModel, sizeof(szModel), ".mdl", "_dropped.mdl", true) != 1)
+		{
+			szModel[0] = '\0';
+		}
+	}
+
+	if(szModel[0] == '\0' || FileExists(szModel, true) == false)
+	{
+		if(Engine_Version == Engine_CSGO)
+		{
+			switch(iTeam)
+			{
+				case 2:	strcopy(szModel, sizeof(szModel), "models/weapons/w_knife_default_t_dropped.mdl");
+				case 3:	strcopy(szModel, sizeof(szModel), "models/weapons/w_knife_default_ct_dropped.mdl");
+			}
+		}
+		else
+		{
+			strcopy(szModel, sizeof(szModel), "models/weapons/w_knife_t.mdl");
+		}
+	}
+
+	if(szModel[0] != '\0')
+	{
+		if(!IsModelPrecached(szModel))
+		{
+			PrecacheModel(szModel, true);
+		}
+		DispatchKeyValue(iKnife, "model", szModel);
+	}
 
 	if(!DispatchSpawn(iKnife))
 	{
@@ -375,41 +417,9 @@ int CreateKnife(int iClient)
 
 	g_hThrownKnives.Push(EntIndexToEntRef(iKnife));
 
-	int iTeam = GetClientTeam(iClient);
 	SetEntPropEnt(iKnife, Prop_Send, "m_hOwnerEntity", iClient);
 	SetEntPropEnt(iKnife, Prop_Send, "m_hThrower", iClient);
 	SetEntProp(iKnife, Prop_Send, "m_iTeamNum", iTeam);
-
-	char sBuffer[PLATFORM_MAX_PATH];
-	int iWeaponKnife = GetPlayerWeaponSlot(iClient, 2);
-	if(iWeaponKnife != -1)
-	{
-		GetEntPropString(iWeaponKnife, Prop_Data, "m_ModelName", sBuffer, sizeof(sBuffer));
-		if(ReplaceString(sBuffer, sizeof(sBuffer), "v_knife_", "w_knife_", true) != 1)
-		{
-			sBuffer[0] = '\0';
-		}
-		else if(Engine_Version == Engine_CSGO && ReplaceString(sBuffer, sizeof(sBuffer), ".mdl", "_dropped.mdl", true) != 1)
-		{
-			sBuffer[0] = '\0';
-		}
-	}
-
-	if(FileExists(sBuffer, true) == false)
-	{
-		if(Engine_Version == Engine_CSGO)
-		{
-			switch(iTeam)
-			{
-				case 2:	strcopy(sBuffer, sizeof(sBuffer), "models/weapons/w_knife_default_t_dropped.mdl");
-				case 3:	strcopy(sBuffer, sizeof(sBuffer), "models/weapons/w_knife_default_ct_dropped.mdl");
-			}
-		}
-		else
-		{
-			strcopy(sBuffer, sizeof(sBuffer), "models/weapons/w_knife_t.mdl");
-		}
-	}
 
 	if(Engine_Version != Engine_SourceSDK2006)
 	{
@@ -434,8 +444,9 @@ int CreateKnife(int iClient)
 	SetEntPropVector(iKnife, Prop_Data, "m_vecAngVelocity", view_as<float>({4000.0, 0.0, 0.0}));
 
 	SetEntProp(iKnife, Prop_Data, "m_nNextThinkTick", -1);
-	Format(sBuffer, sizeof(sBuffer), "!self,Kill,,%0.1f,-1", g_Cvar_fMaxLifeTime);
-	DispatchKeyValue(iKnife, "OnUser1", sBuffer);
+	char szBuffer[PLATFORM_MAX_PATH];
+	Format(szBuffer, sizeof(szBuffer), "!self,Kill,,%0.1f,-1", g_Cvar_fMaxLifeTime);
+	DispatchKeyValue(iKnife, "OnUser1", szBuffer);
 	AcceptEntityInput(iKnife, "FireUser1");
 
 	if(g_Cvar_bTrails)
@@ -610,15 +621,15 @@ void HurtClient(int iClient, int iAttacker, float fDamage, int dmgtype, const ch
 {
 	if (IsValidEntity(g_iPointHurt))
 	{
-		char sBuffer[8], sClientName[64];
+		char szBuffer[8], sClientName[64];
 		GetEntPropString(iClient, Prop_Data, "m_iName", sClientName, sizeof(sClientName));
 		DispatchKeyValue(iClient, "targetname", "hurt");
 
-		IntToString(dmgtype, sBuffer, sizeof(sBuffer));
-		DispatchKeyValue(g_iPointHurt, "DamageType", 	sBuffer);
+		IntToString(dmgtype, szBuffer, sizeof(szBuffer));
+		DispatchKeyValue(g_iPointHurt, "DamageType", 	szBuffer);
 
-		FloatToString(fDamage, sBuffer, sizeof(sBuffer));
-		DispatchKeyValue(g_iPointHurt, "Damage", sBuffer);
+		FloatToString(fDamage, szBuffer, sizeof(szBuffer));
+		DispatchKeyValue(g_iPointHurt, "Damage", szBuffer);
 
 		DispatchKeyValue(g_iPointHurt, "classname", sWeapon);
 		
