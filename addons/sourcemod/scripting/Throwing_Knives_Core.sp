@@ -10,9 +10,9 @@
 
 public Plugin myinfo = 
 {
-	name = "[CS S / CS GO] Throwing Knives Core",
+	name = "[CS:S / CS:GO] Throwing Knives Core",
 	author = "R1KO", /* Сделано на основе плагинов от  meng и Bacardi */
-	version = "1.7"
+	version = "1.8"
 };
 
 #define DMG_HEADSHOT		(1 << 30)
